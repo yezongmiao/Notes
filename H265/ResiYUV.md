@@ -7,17 +7,20 @@
 H265内部的Class封装一般分为两种： 一种是编码类，一种是数据类。
 
 ### 编解码类
-*TDecTop* :好像是最顶层的解码器，然后内部封装了几乎下面所有的编解码类别。
 
-*TDecGop*：解码GOP为单位的解码器类内部也封装了各类的解码器，包括：熵编码器，环路滤波器等等
+*TAppDecTop* ：这个才是解码器最外层的类，继承配置文件的类，decode函数对YUV视频进行解码，其中decode函数内容调用了m_cTDecTop(TDecTop)中的decode函数进行解码，解码后，对应执行m_cTDecTop.executeFilters()函数对解码后的pcListPic中的图像进行滤波，其实这部分的滤波，也是使用m_cTDecTop中的滤波器进行操作的。 滤波结束后，吐出rec图像。
 
-*TDecSlice* 就是在TDecGOP中的成员，用于解码图像的Slice，
+*TDecTop* : 好像是最顶层的解码器，然后内部封装了几乎下面所有的编解码类别，GOP，Slice，CU，量化，预测，熵编码，滤波器等等，内部包含了各类的编码器的类，和一个TComList，是一个TComPic的列表。好吧，其实他的滤波也是调用TDecGop::filterPicture ，就是函数的层层包装。=-=！这里的decode，主要调用了xDecodeSlice,而这个函数主要调用调用TDecGop中的decompressSlice函数。
+
+*TDecGop*：解码GOP为单位的解码器类内部也封装了各类的解码器，包括：熵编码器，环路滤波器，好吧。对slice进行decompress。实际上是对pic进行decompress。在这里会对图像进行分片，分完片调用TDecSlice类对Slice进行decode和decompress。
+
+*TDecSlice* ：就是在TDecGOP中的成员，用于解码图像的Slice，
 
 *TDecCu*：   解码CU的解码器类，内部包含存储CU块级别Res和Rec内存空间，如果要提取Pred信息，需要在这个解码器内部对Pred信息进行维护。
 
 *TComTrQuant*: 量化器的类，在编码CU的过程中，交叉了其他模块的解码器，这个是关于量化的模块。
 
-*TComPrediction*： 预期器，可能对于帧内预测以及帧间预测的内容，都会在这个类中进行运算。
+*TComPrediction*：预测器，可能对于帧内预测以及帧间预测的内容，都会在这个类中进行运算。
 
 *TDecEntropy* : 熵编码器，用这个类进行熵编码以及熵解码吧，理论上需要编码的信息有：预测模式，残差信息。
 
@@ -27,7 +30,6 @@ H265内部的Class封装一般分为两种： 一种是编码类，一种是数�
 *TComPicYuv*：文件中读取出来的YUV数据，最后的YUV数据rec的格式是这个格式，与**外部数据的吞吐**也都是从这个数据里走的。
 
 *TComPic* ： 这个类包含了图像的一整帧的数据，包含了由TComPicYuv复制得到的一帧的图像，以及包含了TComDataCU，这个类会存储最佳的CU数据，这个会重复存储所有的CU数据吗？具体存储是啥需要探究。这个类会为rec，org，和true_org创建内存空间，这三个所属的类别的就是：TComPicYuv()。 可以通过这个类去创建一些属于TComPicYuv的内存，通过这个Pic这个类操作PicYuv这个类。
-
 
 *TComYuv* ： 一般用于存放Rec， Res的YUV类的数据，可以通过指定大小来申请一定的内存空间。存储编码过程中的中间数据以及rec。这部分的数据一般是在编码器的类内部的，用来做临时的存储，一般情况情况下，编码阶段结束的话会被释放掉。
 
@@ -44,12 +46,6 @@ H265内部的Class封装一般分为两种： 一种是编码类，一种是数�
 <div align=center> <img src="https://img-blog.csdn.net/20170504175714609?watermark/2/text/aHR0cDovL2Jsb2cuY3Nkbi5uZXQvTkJfdm9sXzE=/font/5a6L5L2T/fontsize/400/fill/I0JBQkFCMA==/dissolve/70/gravity/Center" style="zoom:10%;" /></div>
 
 
-
-<div align=center><img src="https://img-blog.csdnimg.cn/20200713100105643.png?x-oss-process=image/watermark,type_ZmFuZ3poZW5naGVpdGk,shadow_10,text_aHR0cHM6Ly9ibG9nLmNzZG4ubmV0L2h1c3RlcjE0NDY=,size_10,color_FFFFFF,t_70" style="zoom:60%;" /></div>
-
-
-
-
 1. HM首先使用TComPicYuv保存从文件中读取出来的YUV数据,也就是TComPicYuv这里面应该包含了整个YUV文件的数据。
 2. 利用TComPicYuv构造TComPic，并把YUV数据复制给他（TComPic包含了TComPicYuv成员），其中包含了数据（TComPicYuv），以及图像信息（TComPicSym，在TComPicSym中还包含了TComDataCU），实际上这里会有一个队列在，毕竟是多帧的图像，有用到信息的扔进队列里面。
 3. 处理图像队列中的每一个TComPic，实际是处理TComPic中的每一个CTU/CU（存放在TComPicSym中）
@@ -59,11 +55,15 @@ H265内部的Class封装一般分为两种： 一种是编码类，一种是数�
 7. 进行编码，tempCU用于编码过程中，bestCU用于保存最优信息
 8.  产生的最优信息会被复制回TComPicSym中
 
-
 ## 输入的流情况
 
-1. 在TDecGOP层次，会调用**TDecGop::decompressSlice**对Slice层次的信息进行解压，其中主要调用了**TDecSlice::decompressSlice**函数对程序中确定切片的内容进行解码,这个函数会如下 4.1.1所言调用decodeCtu函数，随后调用decompressCtu函数进行解码。
-2. 在decodeCtu中调用[TDecCu::XdecodeCU](#tdeccuxdecodecu),对CU的信息进行熵解码，获得关于预测模式之类的东西，然后经过[TDecCu::xDecompressCU](#tdeccuxdecompresscu)，完成对输入的图像的重建，但是这里的输出是没滤波之前的重建图像。
+			1. 解码主文件是decmain.cpp. 最重要的是调用了TAppDecTop这个类的decode函数对图像进行解码。
+			2. TAppDecTop类是解码器最顶层的类，
+
+2. 在TDecGOP层次，会调用**TDecGop::decompressSlice**对Slice层次的信息进行解压，其中主要调用了**TDecSlice::decompressSlice**函数对程序中确定切片的内容进行解码,这个函数会如下 4.1.1所言调用decodeCtu函数，随后调用decompressCtu函数进行解码。
+
+在decodeCtu中调用[TDecCu::XdecodeCU](#tdeccuxdecodecu),对CU的信息进行熵解码，获得关于预测模式之类的东西，然后经过[TDecCu::xDecompressCU](#tdeccuxdecompresscu)，完成对输入的图像的重建，但是这里的输出是没滤波之前的重建图像。
+
 3. 在完成解码后，对图像进行滤波，执行函数TDecTop::executeLoopFilters，这个函数主要调用了TDecGop::filterPicture对图像进行滤波，然后得到滤波后的图像。
 
 
@@ -201,6 +201,62 @@ TComTURecurse(tuRecurseCU,false,(uiInitTrDepth==0)?TComTU::DONT_SPLIT : TComTU::
 
 这个函数比较重要，应该是把编码器里面存储的Rec，Res 给弄到最终的图像的数据类上，可以搞懂这个函数，这样就能知道里面的处理单元的问题了。
 
+去块滤波器引用自：
+
+[CSDN去方块滤波](https://blog.csdn.net/m0_37579288/article/details/79430435)
+
+后续的量化说明，我先码住！！！
+
+[CSDN量化](https://blog.csdn.net/nb_vol_1/article/details/51191935)
+
+## TComLoopFilter
+
+用于对Pic进行滤波的编码器的类，主要是对CU块进行滤波，整体包含了两个操作，去块滤波和自适应样点补偿。调用loopFilterPic函数对pcPic对象进行滤波。
+
+### TComLoopFilter::loopFilterPic
+
+逐个访问cu块，根据cu块初始化m_aapucBS[EDGE_VER]和m_aapbEdgeFilter[EDGE_VER],分别存储BS的值和边界滤波开关的值。滤波分为两个方向进行的，Horizontal filtering和Vertical filtering。 分别调用xDeblockCU进行滤波。
+
+### TComLoopFilter:: xDeblockCU
+
+[去方块滤波CSDN](https://blog.csdn.net/m0_37579288/article/details/79430435)
+
+以CTU为单位输入的滤波器中，然后根据每个CU的深度情况，对CTU进行递归处理，调用xDeblockCU的去处理每一个CU信息。
+
+1. 调用xSetLoopfilterParam函数判断边界情况。
+2. 调用xSetEdgefilterTU判断TU及其内部是否需要滤波
+3. 调用xSetEdgefilterPU判断PU及其内部是否需要滤波工作
+4. 遍历一个CU块内部所有的4x4（partition）的块，根据4x4的块的位置判断BS的开关，因为BS也不是都滤波的。
+5. 调用xGetBoundaryStrengthSingle求解得到每个partition的横向bs值和纵向的bs值，存储在m_aapucBS[DIR]中，
+6. 然后调用xEdgeFilterLuma对亮度进行滤波，色度同理。
+
+### TComLoopFilter::xSetLoopfilterParam
+
+判断cu的边界是否存在，是否有内部边界，是否跨越Tile边界，以及是否有左、上边界（第一列没有左边界，第一行没有上边界），结果保存在LFCUParam中。
+
+### TComLoopFilter::xSetEdgefilterPU
+
+由LFCUParam设置TU、PU及内部base_unit（4x4）的块，初始化滤波强度信息，递归调用自己，并保存设置信息。
+
+### TComLoopFilter::xGetBoundaryStrengthSingle
+
+计算边界强度，过程图如下：保存在m_aapucBS中。
+
+　　<div align=center> <img src="https://img-blog.csdn.net/20180303150949514" style="zoom:80%;"> </div>
+
+### TComLoopFilter::xEdgeFilterLuma
+
+对亮度块进行滤波开关判断，并判断是否需要进行强滤波（调用xUseStrongFiltering），最后调用xPelFilterLuma进行实际的滤波计算，色度分量同理。
+
+### TComLoopFilter::xUseStrongnFiltering
+
+完成判定边界处像素是否超阈值的一组公式。
+
+### TComLoopFilter::xPelFilterLuma
+
+强弱滤波的滤波计算过程,具体涉及到滤波计算的公式请参考《H.265/HEVC：原理、标准与实现》万帅，杨付正编
+
+
 
 ## 代码中变量记录
 
@@ -239,4 +295,38 @@ ui是unsinged int 这个大家应该都知道，那Part是什么意思呢？其�
      Raster_idx=g_zscanToRaster[zscan_idx]
 
 <div align=center><img src=https://img-blog.csdnimg.cn/20191125161359824.png?x-oss-process=image/watermark,type_ZmFuZ3poZW5naGVpdGk,shadow_10,text_aHR0cHM6Ly9ibG9nLmNzZG4ubmV0L3dlaXhpbl80Mzg2NjE4OA==,size_16,color_FFFFFF,t_70 style="zoom:50%;"/></div>
+
+
+
+
+
+### uiDepth
+
+表示CU在CTU块中的深度的信息值。
+
+### Stride
+
+内存中存储一张图片时，并不是按照宽和高的大小尺寸分配比例，然后分配相应大小的内存，通常会在图片的每一行（此处假设图片的扫描方式是光栅扫描）都会有一些填充的字节，这些字节是用来帮助在内存中更好地存储和显示。
+
+<div align=center><img src="https://img-blog.csdn.net/20150723222057289" style="zoom:70%;" /></div>
+
+从图中我们可以看出，左边是image的width，右边阴影部分就是填充部分（padding）。所以一般在读取数据的时候，会获得pScanLine0的地址，然后访问这个地址后的Image width个像素值，获得后存储到文件中，之后pScanLine0+stride进行下一行数据的获取。而padding部分填充的信息具体是啥就不清楚了。
+
+
+
+### margin X 
+
+具体的marginX的情况如下图所示：
+
+<div align=center><img src="https://img-blog.csdn.net/20170124155437193?watermark/2/text/aHR0cDovL2Jsb2cuY3Nkbi5uZXQvcmFua2xpbmczMTU=/font/5a6L5L2T/fontsize/400/fill/I0JBQkFCMA==/dissolve/70/gravity/Center" style="zoom:70%;" /></div>
+
+其中：
+
+1. m_apiPicBufY是一个分量信息存储在内存中需要申请的buf空间的初始地址，内部包含了原始的图像数据和padding的数据内容。
+2. m_apiPicOrgY 是原始的图像内容，其起始地址与buff的起始地址的关系如上图所示。
+3. m_iPicWidth表示原始图像 数据的宽度，可以理解为读入的时候YUV文件的宽度。同理高度也是。
+
+
+
+
 
