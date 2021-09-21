@@ -262,9 +262,9 @@ TComTURecurse(tuRecurseCU,false,(uiInitTrDepth==0)?TComTU::DONT_SPLIT : TComTU::
 
 ### uiAbsPartIdx
 
-ui是unsinged int 这个大家应该都知道，那Part是什么意思呢？其实是每个4×4单元被称为一个Part。那Abs是表示CU在CTU中的绝对下标，同样也有Rel表示相对的下标，如一个CU有可能会被划分成不同深度的TU，TU就可以通过GetTransformDepthRel()函数来获得TU相对CU的深度。
+ui是unsinged int 这个大家应该都知道，那Part是什么意思呢？其实是每个4×4单元被称为一个Part。那Abs是表示CU在CTU中的绝对下标，同样也有Rel表示相对的下标，如一个CU有可能会被划分成不同深度的TU，TU就可以通过GetTransformDepthRel()函数来获得TU相对CU的深度。这个参数只是指CU在CTU中的位置，而不是全局的位置。
 
-　　Z字形扫描顺序在编码中经常用到，如下图是CTU划分成CU后的Z字形编码顺序，CU按此顺序逐个进行编码
+　　Z字形扫描顺序在编码中经常用到，如下图是CTU划分成CU后的Z字形编码顺序，CU按此顺序逐个进行编码.
 　　<div align=center> <img src="https://img-blog.csdnimg.cn/20200713093741920.png?x-oss-process=image/watermark,type_ZmFuZ3poZW5naGVpdGk,shadow_10,text_aHR0cHM6Ly9ibG9nLmNzZG4ubmV0L2h1c3RlcjE0NDY=,size_10,color_FFFFFF,t_70" style="zoom:80%;"> </div>
 
 但是CU在CTU中的index却不是简单等于这个编码顺序，因为不确定一个CTU会划分成多少个CU，只是知道编码顺序并不能确定CU的位置。
