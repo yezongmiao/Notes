@@ -24,7 +24,7 @@
 ## 2.3 整体框架流程
 整体框架图如下：
 
-<div align=center> <img src="https://img-blog.csdn.net/20170504175714609?watermark/2/text/aHR0cDovL2Jsb2cuY3Nkbi5uZXQvTkJfdm9sXzE=/font/5a6L5L2T/fontsize/400/fill/I0JBQkFCMA==/dissolve/70/gravity/Center" style="zoom:10%;" /></div>
+<div align=center> <img src="https://github.com/yezongmiao/Notes/blob/master/img/20220308_1.png" style="zoom:10%;" /></div>
 
 ## 2.4 工作1
 
